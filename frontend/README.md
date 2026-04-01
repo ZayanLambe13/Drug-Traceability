@@ -1,70 +1,191 @@
-# Getting Started with Create React App
+# 💊 Drug Traceability DApp
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A full-stack blockchain-based drug supply chain system that ensures transparency, authenticity, and traceability of pharmaceutical products from manufacturer to pharmacy.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## 🚀 Overview
 
-### `npm start`
+This decentralized application (DApp) tracks the lifecycle of a drug batch across multiple stakeholders:
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+* 🏭 Manufacturer → registers drug batch
+* 🧪 Lab → tests and verifies quality
+* 🚚 Distributor → transfers ownership
+* 🏥 Pharmacy → verifies authenticity
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+All transactions are recorded on the blockchain, ensuring **tamper-proof traceability**.
 
-### `npm test`
+---
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## 🧩 Features
 
-### `npm run build`
+* 🔐 Role-based access control (Manufacturer, Lab, Distributor, Pharmacy)
+* 📦 Batch registration with metadata
+* 🧪 Lab testing (Pass / Fail)
+* 🔄 Ownership transfer across supply chain
+* 🔍 Batch verification system
+* 📊 Timeline visualization of product journey
+* 📜 Blockchain-based transfer history
+* 🧾 Activity logs (UI-level tracking)
+* 🌐 MetaMask wallet integration
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+---
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## 🛠️ Tech Stack
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Blockchain
 
-### `npm run eject`
+* Solidity
+* Hardhat
+* Ethers.js
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Frontend
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+* React.js (Create React App)
+* CSS (Custom UI / Glassmorphism design)
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### Wallet
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+* MetaMask
 
-## Learn More
+---
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## 📂 Project Structure
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```
+drug-traceability/
+│
+├── contracts/              # Smart contracts (Solidity)
+├── scripts/                # Deployment & demo scripts
+│   └── demo.cjs
+├── test/                   # Contract tests
+│
+├── frontend/               # React frontend
+│   ├── public/
+│   └── src/
+│       ├── App.js
+│       ├── App.css
+│
+├── hardhat.config.cjs
+└── .env
+```
 
-### Code Splitting
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## ⚙️ Setup & Installation
 
-### Analyzing the Bundle Size
+### 1️⃣ Clone Repository
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+```
+git clone https://github.com/ZayanLambe13/Drug-Traceability.git
+cd Drug-Traceability
+```
 
-### Making a Progressive Web App
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+### 2️⃣ Install Dependencies
 
-### Advanced Configuration
+#### Backend (Hardhat)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+```
+npm install
+```
 
-### Deployment
+#### Frontend
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+```
+cd frontend
+npm install
+```
 
-### `npm run build` fails to minify
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+### 3️⃣ Start Local Blockchain
+
+```
+npx hardhat node
+```
+
+---
+
+### 4️⃣ Deploy & Initialize System
+
+```
+npx hardhat run scripts/demo.cjs --network localhost
+```
+
+This will:
+
+* Deploy contract
+* Assign roles
+* Simulate full supply chain flow
+
+---
+
+### 5️⃣ Run Frontend
+
+```
+cd frontend
+npm start
+```
+
+Open:
+
+```
+http://localhost:3000
+```
+
+---
+
+## 🧪 Test Accounts (Hardhat)
+
+| Role         | Address   |
+| ------------ | --------- |
+| Manufacturer | 0x7099... |
+| Lab          | 0x3C44... |
+| Distributor  | 0x90F7... |
+| Pharmacy     | 0x15d3... |
+
+👉 Import these accounts into MetaMask using Hardhat private keys.
+
+---
+
+## 🔄 Workflow
+
+1. Manufacturer registers a batch
+2. Lab performs testing (Pass / Fail)
+3. Distributor receives and transfers
+4. Pharmacy verifies final product
+5. User can view full history and timeline
+
+---
+
+## 📊 UI Highlights
+
+* Clean dark dashboard UI
+* Timeline-based tracking
+* Verification details panel
+* Transfer history (on-chain)
+* Activity logs (off-chain UI)
+
+---
+
+## 🔐 Security Notes
+
+* Do NOT expose `.env` file
+* Do NOT push private keys
+* Use test accounts only (Hardhat local network)
+
+---
+
+## 🚧 Future Improvements
+
+* 📱 QR Code verification system
+* ☁️ IPFS file upload for lab reports
+* 🌍 Deployment on Sepolia testnet
+* 📄 Export verification reports (PDF)
+* 👥 Multi-user login system
+
+---
+
+
