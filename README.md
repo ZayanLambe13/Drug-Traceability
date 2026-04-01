@@ -1,113 +1,205 @@
-# Drug Traceability and Testability System
+# 💊 Drug Traceability DApp
 
-## Overview
-
-A blockchain-based pharmaceutical supply chain system built using Solidity and Hardhat.
-
-The system ensures secure drug batch registration, lab validation enforcement, and immutable ownership tracking.
+A full-stack blockchain-based drug supply chain system that ensures transparency, authenticity, and traceability of pharmaceutical products from manufacturer to pharmacy.
 
 ---
 
-## Problem Statement
+## 🚀 Overview
 
-Counterfeit drugs and tampered lab reports pose significant risks in pharmaceutical supply chains. Traditional systems lack transparency and tamper resistance.
+This decentralized application (DApp) tracks the lifecycle of a drug batch across multiple stakeholders:
 
----
+* 🏭 Manufacturer → registers drug batch
+* 🧪 Lab → tests and verifies quality
+* 🚚 Distributor → transfers ownership
+* 🏥 Pharmacy → verifies authenticity
 
-## Solution
-
-A decentralized smart contract system that:
-
-- Registers drug batches
-- Enforces lab test approval
-- Tracks ownership transfers
-- Maintains immutable audit history
+All transactions are recorded on the blockchain, ensuring **tamper-proof traceability**.
 
 ---
 
-## Tech Stack
+## 🧩 Features
 
-- Solidity
-- Hardhat
-- Ethereum (Sepolia + Local Network)
-- Ethers.js
-- Node.js
-
----
-
-## System Roles
-
-- Admin
-- Manufacturer
-- Lab
-- Distributor
-- Pharmacy
+* 🔐 Role-based access control (Manufacturer, Lab, Distributor, Pharmacy)
+* 📦 Batch registration with metadata
+* 🧪 Lab testing (Pass / Fail)
+* 🔄 Ownership transfer across supply chain
+* 🔍 Batch verification system
+* 📊 Timeline visualization of product journey
+* 📜 Blockchain-based transfer history
+* 🧾 Activity logs (UI-level tracking)
+* 🌐 MetaMask wallet integration
 
 ---
 
-## Lifecycle States
+## 🛠️ Tech Stack
 
-0 → Manufactured  
-1 → Tested  
-2 → Distributed  
-3 → InPharmacy  
+### Blockchain
 
----
+* Solidity
+* Hardhat
+* Ethers.js
 
-## Features
+### Frontend
 
-- Role-Based Access Control
-- Drug Batch Registration
-- Lab Test Enforcement
-- Transfer Restrictions Before Testing
-- Ownership Tracking
-- Immutable Audit Trail
-- Automated Demo Script
+* React.js (Create React App)
+* CSS (Custom UI / Glassmorphism design)
+
+### Wallet
+
+* MetaMask
 
 ---
 
-## Running the Project
+## 📂 Project Structure
 
-### Install Dependencies
+```
+drug-traceability/
+│
+├── contracts/              # Smart contracts (Solidity)
+├── scripts/                # Deployment & demo scripts
+│   └── demo.cjs
+├── test/                   # Contract tests
+│
+├── frontend/               # React frontend
+│   ├── public/
+│   └── src/
+│       ├── App.js
+│       ├── App.css
+│
+├── hardhat.config.cjs
+└── .env
+```
 
-```bash
+---
+
+## ⚙️ Setup & Installation
+
+### 1️⃣ Clone Repository
+
+```
+git clone https://github.com/ZayanLambe13/Drug-Traceability.git
+cd Drug-Traceability
+```
+
+---
+
+### 2️⃣ Install Dependencies
+
+#### Backend (Hardhat)
+
+```
 npm install
+```
 
+#### Frontend
 
-### Compile Smart Contracts
-npx hardhat compile
-Run Automated Demo
-npx hardhat run scripts/demo.cjs
+```
+cd frontend
+npm install
+```
+
+---
+
+### 3️⃣ Start Local Blockchain
+
+```
+npx hardhat node
+```
+
+---
+
+### 4️⃣ Deploy & Initialize System
+
+```
+npx hardhat run scripts/demo.cjs --network localhost
+```
 
 This will:
 
-Deploy contract
-
-Assign roles
-
-Register batch
-
-Submit lab result
-
-Transfer ownership
-
-Display final state and audit history
-
-Why Hardhat Local Network Was Used
-
-Deploying each actor on Sepolia would require multiple funded wallets and manual account switching.
-For efficient academic demonstration, Hardhat local network was used to simulate multiple actors without real gas costs.
-
-### Future Enhancements
-
-React Frontend Dashboard
-
-QR Code Integration
-
-Real IPFS Report Upload
-
-Blockchain Explorer UI
+* Deploy contract
+* Assign roles
+* Simulate full supply chain flow
 
 ---
-### Version
-Backend Stable v1.0
+
+### 5️⃣ Run Frontend
+
+```
+cd frontend
+npm start
+```
+
+Open:
+
+```
+http://localhost:3000
+```
+
+---
+
+## 🧪 Test Accounts (Hardhat)
+
+| Role         | Address   |
+| ------------ | --------- |
+| Manufacturer | 0x7099... |
+| Lab          | 0x3C44... |
+| Distributor  | 0x90F7... |
+| Pharmacy     | 0x15d3... |
+
+👉 Import these accounts into MetaMask using Hardhat private keys.
+
+---
+
+## 🔄 Workflow
+
+1. Manufacturer registers a batch
+2. Lab performs testing (Pass / Fail)
+3. Distributor receives and transfers
+4. Pharmacy verifies final product
+5. User can view full history and timeline
+
+---
+
+## 📊 UI Highlights
+
+* Clean dark dashboard UI
+* Timeline-based tracking
+* Verification details panel
+* Transfer history (on-chain)
+* Activity logs (off-chain UI)
+
+---
+
+## 🔐 Security Notes
+
+* Do NOT expose `.env` file
+* Do NOT push private keys
+* Use test accounts only (Hardhat local network)
+
+---
+
+## 🚧 Future Improvements
+
+* 📱 QR Code verification system
+* ☁️ IPFS file upload for lab reports
+* 🌍 Deployment on Sepolia testnet
+* 📄 Export verification reports (PDF)
+* 👥 Multi-user login system
+
+---
+
+## 👨‍💻 Author
+
+**Zayan Lambe**
+
+---
+
+## ⭐ Contribute
+
+Feel free to fork, improve, and submit pull requests.
+
+---
+
+## 📜 License
+
+This project is open-source and available under the MIT License.
