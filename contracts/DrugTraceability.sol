@@ -3,178 +3,133 @@ pragma solidity ^0.8.20;
 
 contract DrugTraceability {
 
+    enum Role { None, Manufacturer, Lab, Distributor, Pharmacy }
+    enum Stage { Manufactured, Tested, Distributed, InPharmacy }
+
+    struct Batch {
+        string batchId;
+        string drugName;
+        uint manufactureDate;
+        uint expiryDate;
+        address owner;
+        bool testPassed;
+        string ipfsHash;
+        Stage stage;
+    }
+
+    struct Transfer {
+        address from;
+        address to;
+        uint timestamp;
+    }
+
+    mapping(string => Batch) public batches;
+    mapping(string => Transfer[]) public history;
+    mapping(address => Role) public roles;
+
     address public admin;
 
     constructor() {
         admin = msg.sender;
     }
 
-    // ---------------- ENUMS ----------------
-
-    enum Role { None, Manufacturer, Lab, Distributor, Pharmacy }
-    enum Status { Manufactured, Tested, Distributed, InPharmacy }
-
-    // ---------------- STRUCTS ----------------
-
-    struct Batch {
-        string batchId;
-        string drugName;
-        uint256 manufactureDate;
-        uint256 expiryDate;
-        address currentOwner;
-        bool testPassed;
-        string ipfsHash;
-        Status status;
-        bool exists;
-    }
-
-    struct TransferRecord {
-        address from;
-        address to;
-        uint256 timestamp;
-    }
-
-    // ---------------- STORAGE ----------------
-
-    mapping(string => Batch) public batches;
-    mapping(address => Role) public roles;
-    mapping(string => TransferRecord[]) public batchHistory;
-
-    // ---------------- EVENTS ----------------
-
-    event RoleAssigned(address indexed user, Role role);
-    event BatchRegistered(string batchId, address manufacturer);
-    event TestSubmitted(string batchId, bool status);
-    event OwnershipTransferred(string batchId, address from, address to);
-
-    // ---------------- MODIFIERS ----------------
-
-    modifier onlyAdmin() {
-        require(msg.sender == admin, "Not admin");
+    modifier onlyRole(Role r) {
+        require(roles[msg.sender] == r, "Not authorized");
         _;
     }
 
-    modifier onlyRole(Role _role) {
-        require(roles[msg.sender] == _role, "Unauthorized role");
-        _;
+    function assignRole(address user, uint8 role) public {
+        require(msg.sender == admin, "Only admin");
+        roles[user] = Role(role);
     }
-
-    // ---------------- ROLE MANAGEMENT ----------------
-
-    function assignRole(address _user, Role _role) public onlyAdmin {
-        roles[_user] = _role;
-        emit RoleAssigned(_user, _role);
-    }
-
-    // ---------------- BATCH REGISTRATION ----------------
 
     function registerBatch(
-        string memory _batchId,
-        string memory _drugName,
-        uint256 _manufactureDate,
-        uint256 _expiryDate
+        string memory id,
+        string memory name,
+        uint mDate,
+        uint eDate
     ) public onlyRole(Role.Manufacturer) {
 
-        require(!batches[_batchId].exists, "Batch exists");
-
-        batches[_batchId] = Batch({
-            batchId: _batchId,
-            drugName: _drugName,
-            manufactureDate: _manufactureDate,
-            expiryDate: _expiryDate,
-            currentOwner: msg.sender,
-            testPassed: false,
-            ipfsHash: "",
-            status: Status.Manufactured,
-            exists: true
-        });
-
-        emit BatchRegistered(_batchId, msg.sender);
+        batches[id] = Batch(
+            id,
+            name,
+            mDate,
+            eDate,
+            msg.sender,
+            false,
+            "",
+            Stage.Manufactured
+        );
     }
-
-    // ---------------- LAB TEST ----------------
 
     function submitTestResult(
-        string memory _batchId,
-        bool _status,
-        string memory _ipfsHash
+        string memory id,
+        bool passed,
+        string memory hash
     ) public onlyRole(Role.Lab) {
 
-        require(batches[_batchId].exists, "Batch not found");
+        Batch storage b = batches[id];
+        require(b.stage == Stage.Manufactured, "Invalid stage");
 
-        batches[_batchId].testPassed = _status;
-        batches[_batchId].ipfsHash = _ipfsHash;
-        batches[_batchId].status = Status.Tested;
-
-        emit TestSubmitted(_batchId, _status);
+        b.testPassed = passed;
+        b.ipfsHash = hash;
+        b.stage = Stage.Tested;
     }
-
-    // ---------------- OWNERSHIP TRANSFER ----------------
 
     function transferOwnership(
-        string memory _batchId,
-        address _newOwner
+        string memory id,
+        address to
     ) public {
 
-        require(batches[_batchId].exists, "Batch not found");
-        require(msg.sender == batches[_batchId].currentOwner, "Not owner");
+        Batch storage b = batches[id];
 
-        // Prevent distribution if test failed
-        require(batches[_batchId].testPassed == true, "Batch not approved");
-
-        batchHistory[_batchId].push(
-            TransferRecord(msg.sender, _newOwner, block.timestamp)
+        require(
+            roles[msg.sender] == Role.Manufacturer ||
+            roles[msg.sender] == Role.Distributor,
+            "Not allowed"
         );
 
-        batches[_batchId].currentOwner = _newOwner;
+        history[id].push(Transfer(msg.sender, to, block.timestamp));
 
-        // Update lifecycle
-        if (roles[_newOwner] == Role.Distributor) {
-            batches[_batchId].status = Status.Distributed;
-        } else if (roles[_newOwner] == Role.Pharmacy) {
-            batches[_batchId].status = Status.InPharmacy;
+        b.owner = to;
+
+        if (roles[to] == Role.Distributor) {
+            b.stage = Stage.Distributed;
         }
 
-        emit OwnershipTransferred(_batchId, msg.sender, _newOwner);
+        if (roles[to] == Role.Pharmacy) {
+            b.stage = Stage.InPharmacy;
+        }
     }
 
-    // ---------------- VIEW FUNCTIONS ----------------
-
-    function getBatchDetails(string memory _batchId)
-        public
-        view
-        returns (
+    function getBatchDetails(string memory id)
+        public view returns (
             string memory,
             string memory,
-            uint256,
-            uint256,
+            uint,
+            uint,
             address,
             bool,
             string memory,
-            Status
+            Stage
         )
     {
-        require(batches[_batchId].exists, "Batch not found");
-
-        Batch memory b = batches[_batchId];
-
+        Batch memory b = batches[id];
         return (
             b.batchId,
             b.drugName,
             b.manufactureDate,
             b.expiryDate,
-            b.currentOwner,
+            b.owner,
             b.testPassed,
             b.ipfsHash,
-            b.status
+            b.stage
         );
     }
 
-    function getBatchHistory(string memory _batchId)
-        public
-        view
-        returns (TransferRecord[] memory)
+    function getBatchHistory(string memory id)
+        public view returns (Transfer[] memory)
     {
-        return batchHistory[_batchId];
+        return history[id];
     }
 }

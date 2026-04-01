@@ -1,0 +1,225 @@
+/* -------- BASE -------- */
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, #0f1720, #05080c);
+  color: #e6edf3;
+  font-family: "Inter", sans-serif;
+  display: flex;
+  justify-content: center;
+}
+
+/* -------- CONTAINER -------- */
+.container {
+  width: 95%;
+  max-width: 900px;
+  padding: 30px 20px;
+}
+
+/* -------- HEADER -------- */
+h1 {
+  text-align: center;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+/* -------- WALLET -------- */
+.wallet {
+  text-align: center;
+  color: #8ea3b8;
+  margin-bottom: 20px;
+}
+
+/* -------- KPI -------- */
+.kpi {
+  display: flex;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.kpi div {
+  flex: 1;
+  background: rgba(17, 24, 33, 0.6);
+  backdrop-filter: blur(10px);
+  padding: 14px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid #1f2a36;
+  transition: 0.3s;
+}
+
+.kpi div:hover {
+  transform: translateY(-4px);
+  border-color: #4da6a6;
+}
+
+/* -------- CARD -------- */
+.card {
+  background: rgba(17, 24, 33, 0.7);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 20px;
+  margin: 25px auto;
+  border: 1px solid #1f2a36;
+  transition: 0.3s;
+
+  width: 100%;
+  box-sizing: border-box; /* 🔥 FIX */
+}
+
+.card:hover {
+  transform: translateY(-3px);
+}
+
+/* -------- INPUT FIX (MAIN ISSUE) -------- */
+input, select {
+  width: 100%;
+  padding: 14px;
+  margin-top: 12px;
+  border-radius: 10px;
+  border: 1px solid #2a3947;
+  background: #0f1620;
+  color: white;
+  font-size: 14px;
+
+  box-sizing: border-box; /* 🔥 CRITICAL FIX */
+}
+
+/* -------- SELECT ARROW FIX -------- */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  padding-right: 40px; /* 🔥 SPACE FOR ARROW */
+
+  background-image: url("data:image/svg+xml;utf8,<svg fill='white' height='20' viewBox='0 0 24 24' width='20' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center; /* 🔥 SHIFT INSIDE */
+}
+
+/* -------- BUTTON -------- */
+button {
+  margin: 10px 8px 0 0;
+  padding: 11px 16px;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(135deg, #1c2a36, #223646);
+  color: #cbd6e0;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+button:hover {
+  background: linear-gradient(135deg, #3a7f7f, #4da6a6);
+  transform: scale(1.05);
+  color: white;
+}
+
+button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* -------- TIMELINE -------- */
+.timeline {
+  display: flex;
+  justify-content: space-between;
+  margin: 40px 0;
+}
+
+.step {
+  text-align: center;
+  flex: 1;
+}
+
+.circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #1c2a36;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: auto;
+  color: #aaa;
+}
+
+.circle.active {
+  background: linear-gradient(135deg, #3a7f7f, #4da6a6);
+  color: white;
+}
+
+.circle.fail {
+  background: #7a2e2e;
+}
+
+/* -------- DETAILS -------- */
+.details-container {
+  margin-top: 30px;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.details-grid div {
+  background: rgba(17, 24, 33, 0.6);
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #1f2a36;
+}
+
+.details-grid span {
+  font-size: 12px;
+  color: #8ea3b8;
+}
+
+.details-grid p {
+  margin: 6px 0 0;
+  font-weight: 500;
+}
+
+/* -------- BADGES -------- */
+.badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.success {
+  background: #2e6f6f;
+}
+
+.fail {
+  background: #7a2e2e;
+}
+
+/* -------- HISTORY -------- */
+.history-item {
+  border-bottom: 1px solid #1f2a36;
+  padding: 12px 0;
+}
+
+.history-item small {
+  display: block;
+  color: #8ea3b8;
+  font-size: 12px;
+}
+
+/* -------- SEARCH -------- */
+.recent span {
+  display: inline-block;
+  margin: 5px;
+  padding: 6px 10px;
+  background: #1c2a36;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.recent span:hover {
+  background: #4da6a6;
+  color: white;
+}

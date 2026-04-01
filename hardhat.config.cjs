@@ -7,9 +7,9 @@ console.log("PK:", process.env.PRIVATE_KEY);
 module.exports = {
   solidity: "0.8.28",
   networks: {
-    sepolia: {
-      url: process.env.SEPOLIA_RPC_URL,
-      accounts: [process.env.PRIVATE_KEY],
-    },
-  },
+  // sepolia: {
+  //   url: process.env.SEPOLIA_RPC_URL,
+  //   accounts: [process.env.PRIVATE_KEY],
+  // },
+}
 };
