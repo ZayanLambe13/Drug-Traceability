@@ -194,43 +194,65 @@ function App() {
   };
 
   // TEST
-  const test = async () => {
-    try {
-      if (!batchId) {
-        setStatus("Enter Batch ID");
-        return;
-      }
-
-      if (!purity || !ph) {
-        setStatus("Enter lab parameters");
-        return;
-      }
-
-      let pass = true;
-      if (Number(purity) < 80 || Number(ph) < 6 || Number(ph) > 8) {
-        pass = false;
-      }
-
-      const contract = await getContract();
-
-      const dbg = await contract.getBatchDetails(batchId);
-      console.log("Stage before test:", dbg[7].toString());
-
-      const tx = await contract.submitTestResult(batchId, pass, "QmHash");
-      await tx.wait();
-
-      saveGlobalHistory({
-        type: pass ? "Test Passed" : "Test Failed",
-        batchId,
-        time: Date.now()
-      });
-
-      setStatus(pass ? "Test Passed" : "Test Failed");
-    } catch (err) {
-      console.error(err);
-      setStatus(err.reason || err.message || "Test failed");
+const test = async () => {
+  try {
+    if (!batchId) {
+      setStatus("Enter Batch ID");
+      return;
     }
-  };
+
+    if (!purity || !ph) {
+      setStatus("Enter lab parameters");
+      return;
+    }
+
+    let pass = true;
+
+if (Number(purity) < 80 || Number(ph) < 6 || Number(ph) > 8) {
+  pass = false;
+}
+
+    const contract = await getContract();
+
+    // 🔥 GET EXISTING DATA
+    const existing = await contract.getBatchDetails(batchId);
+
+    // ❌ BLOCK if already passed
+    if (existing[5] === true) {
+      setStatus("❌ Already passed. Re-testing not allowed");
+      return;
+    }
+
+    // ✔ ALLOW retest if failed
+    if (Number(existing[7]) > 1 && existing[5] === false) {
+      setStatus("🔁 Retesting failed batch...");
+    }
+
+    console.log("Stage before test:", existing[7].toString());
+
+    // 🔥 RUN TEST
+    const tx = await contract.submitTestResult(batchId, pass, "QmHash");
+    await tx.wait();
+
+    localStorage.setItem(
+  `lab_${batchId}`,
+  JSON.stringify({ ph, purity, temperature })
+);
+
+    saveGlobalHistory({
+      type: pass ? "Test Passed" : "Test Failed",
+      batchId,
+      time: Date.now()
+    });
+
+    setStatus(pass ? "Test Passed" : "Test Failed");
+
+  } catch (err) {
+    console.error(err);
+    setStatus(err.reason || err.message || "Test failed");
+  }
+};
+
 
   // TRANSFER (with branch info)
   const transfer = async () => {
@@ -243,6 +265,13 @@ function App() {
       const contract = await getContract();
       const tx = await contract.transferOwnership(batchId, receiver);
       await tx.wait();
+      const data = await contract.getBatchDetails(batchId);
+
+// ❌ Block if not tested yet
+if (Number(data[7]) === 0) {
+  setStatus("❌ Cannot transfer: Batch not tested yet");
+  return;
+}
 
       saveGlobalHistory({
         type: "Transfer",
@@ -270,6 +299,15 @@ function App() {
 
     const data = await contract.getBatchDetails(id);
     const hist = await contract.getBatchHistory(id);
+
+    const savedLab = localStorage.getItem(`lab_${id}`);
+
+if (savedLab) {
+  const parsed = JSON.parse(savedLab);
+  setPh(parsed.ph);
+  setPurity(parsed.purity);
+  setTemperature(parsed.temperature);
+}
 
     console.log("STAGE:", Number(data[7]));
     console.log("OWNER:", data[4]);
@@ -330,6 +368,32 @@ const verifyAtPharmacy = async (id) => {
   }
 };
 
+const markDispensed = async (id) => {
+  try {
+    if (!id) {
+      setStatus("Enter Batch ID");
+      return;
+    }
+
+    if (!result[5]) {
+      setStatus("❌ Cannot dispense failed batch");
+      return;
+    }
+
+    saveGlobalHistory({
+      type: "Dispensed",
+      batchId: id,
+      time: Date.now()
+    });
+
+    setStatus("✅ Drug dispensed to patient");
+
+  } catch (err) {
+    console.error(err);
+    setStatus("Dispense failed");
+  }
+};
+
   // ----------------------- UI HELPERS -----------------------
  const Timeline = () => {
   if (!result) return null;
@@ -357,14 +421,25 @@ const verifyAtPharmacy = async (id) => {
           {stages.map((s, i) => {
 
             // 🔥 FIX: ensure number comparison
-            const stageValue = Number(result[7]);
+const stageValue = Number(result[7]);
 
-            const active = i <= stageValue;
+const isDispensed = globalHistory.some(
+  h => h.batchId === result[0] && h.type === "Dispensed"
+);
 
-            const failedStep =
-              i === 1 &&
-              result[5] === false &&
-              stageValue <= 1;
+const hasReachedPharmacy = history.length > 0 && stageValue >= 3;
+
+const active =
+  isDispensed
+    ? true
+    : i === 3
+    ? hasReachedPharmacy
+    : i <= stageValue;
+
+const failedStep =
+  i === 1 &&
+  result[5] === false &&
+  stageValue <= 1;
 
             return (
               <div key={i} className="step">
@@ -373,7 +448,10 @@ const verifyAtPharmacy = async (id) => {
                 >
                   {failedStep ? "✖" : active ? "✔" : ""}
                 </div>
-                <p>{s}</p>
+                <p>
+  {s}
+  {i === 3 && result && ` (${getBranchName(result[4])})`}
+</p>
               </div>
             );
           })}
@@ -444,7 +522,7 @@ const verifyAtPharmacy = async (id) => {
     : 0}%
 </span>
   </div>
-  <small>Overall system performance</small>
+  <small>Overall Drug performance</small>
 </div>
 
 </div>
@@ -574,6 +652,12 @@ const verifyAtPharmacy = async (id) => {
   </button>
 )}
 
+{role === "Pharmacy" && result && Number(result[7]) === 3 && (
+  <button onClick={() => markDispensed(batchId)}>
+    Mark as Dispensed
+  </button>
+)}
+
       </div>
 
       <p>{status}</p>
@@ -603,7 +687,11 @@ const verifyAtPharmacy = async (id) => {
 
       <div>
         <span>Stage</span>
-        <p>{stages[result[7]]}</p>
+        <p>
+  {globalHistory.filter(h => h.batchId === result[0])[0]?.type === "Dispensed"
+    ? "Dispensed"
+    : stages[result[7]]}
+</p>
       </div>
 
       <div>
@@ -612,6 +700,15 @@ const verifyAtPharmacy = async (id) => {
           {result[5] ? "Passed" : "Failed"}
         </p>
       </div>
+
+      <div>
+  <span>Lab Parameters</span>
+  <p>
+    pH: {ph || "N/A"} | Purity: {purity || "N/A"}% | Temp: {temperature || "N/A"}°C
+  </p>
+</div>
+
+
 
       {!result[5] && (
   <div>
@@ -643,6 +740,12 @@ const verifyAtPharmacy = async (id) => {
         <span>IPFS Hash</span>
         <p>{result[6]}</p>
       </div>
+      {globalHistory.some(h => h.batchId === result[0] && h.type === "Dispensed") && (
+  <div>
+    <span>Final Status</span>
+    <p className="badge success">Dispensed</p>
+  </div>
+)}
 
     </div>
   </div>
