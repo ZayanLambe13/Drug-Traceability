@@ -1,9 +1,13 @@
-// SAME CODE — ONLY SAFE WALLET FIX APPLIED
+// ======================= FULL APP =======================
+// Preserves: search, recent, KPI, details, history, activity log, timeline
+// Adds: lab params, fail logic, multi-branch pharmacy, tx.wait() safety
+// NEW: Activity log shows "Transferred to <Branch> - <BatchId>"
 
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import "./App.css";
 
+// ----------------------- CONFIG -----------------------
 const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
 const ABI = [
@@ -18,33 +22,80 @@ const ABI = [
 const roleNames = ["None","Manufacturer","Lab","Distributor","Pharmacy"];
 const stages = ["Manufactured","Tested","Distributed","In Pharmacy"];
 
+// Multiple pharmacy branches
 const receivers = {
   Distributor: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
-  Pharmacy: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65"
+  Pharmacy_Mumbai: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
+  Pharmacy_Delhi: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
+  Pharmacy_Pune: "0x976EA74026E726554dB657fA54763abd0C3a0aa9"
 };
 
+// ----------------------- COMPONENT -----------------------
 function App() {
 
+  // -------- Core inputs --------
   const [batchId, setBatchId] = useState("");
   const [drugName, setDrugName] = useState("");
   const [receiver, setReceiver] = useState("");
 
+  // -------- Lab parameters --------
+  const [temperature, setTemperature] = useState("");
+  const [ph, setPh] = useState("");
+  const [purity, setPurity] = useState("");
+
+  // -------- Search / recent --------
   const [search, setSearch] = useState("");
   const [recentBatches, setRecentBatches] = useState([]);
+  const [showSearch, setShowSearch] = useState(false);
 
+  // -------- Results / logs --------
   const [status, setStatus] = useState("");
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
   const [globalHistory, setGlobalHistory] = useState([]);
 
+  const [showHistory, setShowHistory] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(true);
+  const [kpiFilter, setKpiFilter] = useState(null);
+
+  // -------- Wallet --------
   const [role, setRole] = useState("None");
   const [account, setAccount] = useState("");
-
   const [signer, setSigner] = useState(null);
 
   const shortAddress = (addr) => addr ? addr.slice(0,6)+"..."+addr.slice(-4) : "";
 
-  // LOAD LOCAL DATA
+  // 🔥 Helper: map address → branch name
+  const getBranchName = (addr) => {
+    if (!addr) return "Unknown";
+    const map = {
+      [receivers.Pharmacy_Mumbai]: "Mumbai",
+      [receivers.Pharmacy_Delhi]: "Delhi",
+      [receivers.Pharmacy_Pune]: "Pune",
+      [receivers.Distributor]: "Distributor"
+    };
+    return map[addr] || shortAddress(addr);
+  };
+
+  const getFailureReasons = () => {
+  const reasons = [];
+
+  if (Number(purity) < 80) {
+    reasons.push("Purity below acceptable level (<80%)");
+  }
+
+  if (Number(ph) < 6 || Number(ph) > 8) {
+    reasons.push("pH out of acceptable range (6–8)");
+  }
+
+  if (temperature && Number(temperature) > 40) {
+    reasons.push("Temperature too high");
+  }
+
+  return reasons;
+};
+
+  // ----------------------- LOCAL STORAGE -----------------------
   useEffect(() => {
     const saved = localStorage.getItem("globalHistory");
     if (saved) setGlobalHistory(JSON.parse(saved));
@@ -65,14 +116,9 @@ function App() {
     localStorage.setItem("globalHistory", JSON.stringify(updated));
   };
 
-  // WALLET INIT
+  // ----------------------- WALLET INIT -----------------------
   useEffect(() => {
-    let initialized = false;
-
     const init = async () => {
-      if (initialized) return;
-      initialized = true;
-
       try {
         if (!window.ethereum) {
           setStatus("MetaMask not found");
@@ -82,31 +128,22 @@ function App() {
         const provider = new ethers.BrowserProvider(window.ethereum);
 
         let accounts = await provider.send("eth_accounts", []);
-
         if (accounts.length === 0) {
           accounts = await provider.send("eth_requestAccounts", []);
         }
 
         const signer = await provider.getSigner();
         setSigner(signer);
-
-        const address = accounts[0];
-        setAccount(address);
+        setAccount(accounts[0]);
 
         const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-        const roleId = await contract.roles(address);
-
+        const roleId = await contract.roles(accounts[0]);
         setRole(roleNames[Number(roleId)]);
+
         setStatus("Wallet Connected");
-
       } catch (err) {
-        console.error("INIT ERROR:", err);
-
-        if (err.code === -32002) {
-          setStatus("⚠️ MetaMask request already open");
-        } else {
-          setStatus(err?.reason || err?.message || "Init failed");
-        }
+        console.error(err);
+        setStatus("Wallet init failed");
       }
     };
 
@@ -122,19 +159,29 @@ function App() {
     return new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
   };
 
+  // ----------------------- KPI -----------------------
   const total = globalHistory.length;
   const passed = globalHistory.filter(h => h.type === "Test Passed").length;
   const failed = globalHistory.filter(h => h.type === "Test Failed").length;
 
+  // ----------------------- ACTIONS -----------------------
+
+  // REGISTER
   const register = async () => {
     try {
+      if (!batchId || !drugName) {
+        setStatus("Enter Batch ID and Drug Name");
+        return;
+      }
+
       const contract = await getContract();
-      await contract.registerBatch(
+      const tx = await contract.registerBatch(
         batchId,
         drugName,
         Math.floor(Date.now()/1000),
-        Math.floor(Date.now()/1000)+31536000
+        Math.floor(Date.now()/1000) + 31536000
       );
+      await tx.wait();
 
       saveBatch(batchId);
       saveGlobalHistory({ type: "Register", batchId, time: Date.now() });
@@ -142,14 +189,35 @@ function App() {
       setStatus("Batch Registered");
     } catch (err) {
       console.error(err);
-      setStatus(err?.reason || err?.message || "Registration failed");
+      setStatus(err.reason || err.message || "Registration failed");
     }
   };
 
-  const test = async (pass) => {
+  // TEST
+  const test = async () => {
     try {
+      if (!batchId) {
+        setStatus("Enter Batch ID");
+        return;
+      }
+
+      if (!purity || !ph) {
+        setStatus("Enter lab parameters");
+        return;
+      }
+
+      let pass = true;
+      if (Number(purity) < 80 || Number(ph) < 6 || Number(ph) > 8) {
+        pass = false;
+      }
+
       const contract = await getContract();
-      await contract.submitTestResult(batchId, pass, "QmHash");
+
+      const dbg = await contract.getBatchDetails(batchId);
+      console.log("Stage before test:", dbg[7].toString());
+
+      const tx = await contract.submitTestResult(batchId, pass, "QmHash");
+      await tx.wait();
 
       saveGlobalHistory({
         type: pass ? "Test Passed" : "Test Failed",
@@ -160,179 +228,484 @@ function App() {
       setStatus(pass ? "Test Passed" : "Test Failed");
     } catch (err) {
       console.error(err);
-      setStatus(err?.reason || err?.message || "Test failed");
+      setStatus(err.reason || err.message || "Test failed");
     }
   };
 
+  // TRANSFER (with branch info)
   const transfer = async () => {
     try {
+      if (!batchId || !receiver) {
+        setStatus("Select batch and receiver");
+        return;
+      }
+
       const contract = await getContract();
-      await contract.transferOwnership(batchId, receiver);
+      const tx = await contract.transferOwnership(batchId, receiver);
+      await tx.wait();
 
       saveGlobalHistory({
         type: "Transfer",
         batchId,
         to: receiver,
+        branch: getBranchName(receiver), // 🔥 important
         time: Date.now()
       });
 
-      setStatus("Transferred");
+      setStatus(`Transferred to ${getBranchName(receiver)}`);
     } catch (err) {
       console.error(err);
-      setStatus(err?.reason || err?.message || "Transfer blocked");
+      setStatus(err.reason || err.message || "Transfer failed");
     }
   };
 
-  const verify = async (id) => {
-    if (!id) return;
-
-    try {
-      const contract = await getContract();
-      const data = await contract.getBatchDetails(id);
-      const hist = await contract.getBatchHistory(id);
-
-      setResult(data);
-      setHistory(hist);
-      saveBatch(id);
-
-      setStatus("Verified");
-    } catch (err) {
-      console.error(err);
-      setStatus(err?.reason || err?.message || "Verification failed");
+ const verify = async (id) => {
+  try {
+    if (!id) {
+      setStatus("Enter Batch ID");
+      return;
     }
-  };
 
-  const Timeline = () => {
-    if (!result) return null;
+    const contract = await getContract();
 
-    return (
-      <div className="timeline">
-        {stages.map((s, i) => {
-          const active = i <= result[7];
-          const failed = i === 1 && result[5] === false;
+    const data = await contract.getBatchDetails(id);
+    const hist = await contract.getBatchHistory(id);
 
-          return (
-            <div key={i} className="step">
-              <div className={`circle ${active ? "active" : ""} ${failed ? "fail" : ""}`}>
-                {failed ? "✖" : active ? "✔" : ""}
-              </div>
-              <p>{s}</p>
-            </div>
-          );
-        })}
+    console.log("STAGE:", Number(data[7]));
+    console.log("OWNER:", data[4]);
+
+    // 🔥 DEBUG (very important)
+    console.log("VERIFY DATA:", {
+      batchId: data[0],
+      drug: data[1],
+      owner: data[4],
+      testPassed: data[5],
+      stage: Number(data[7])
+    });
+
+    // 🔥 FORCE fresh render (important fix)
+    setResult([...data]);
+    setHistory([...hist]);
+
+    saveBatch(id);
+
+    setStatus("Verified (Latest Data)");
+  } catch (err) {
+    console.error(err);
+    setStatus(err.reason || err.message || "Verification failed");
+
+  }
+};
+
+const verifyAtPharmacy = async (id) => {
+  try {
+    if (!id) {
+      setStatus("Enter Batch ID");
+      return;
+    }
+
+    if (role !== "Pharmacy") {
+      setStatus("Only pharmacy can verify final delivery");
+      return;
+    }
+
+    const contract = await getContract();
+    const data = await contract.getBatchDetails(id);
+
+    if (!data[5]) {
+      setStatus("❌ Cannot dispense: Batch failed lab test");
+      return;
+    }
+
+    if (Number(data[7]) !== 3) {
+      setStatus("❌ Batch not yet delivered to pharmacy");
+      return;
+    }
+
+    setStatus("✅ Verified at Pharmacy - Ready for dispensing");
+
+  } catch (err) {
+    console.error(err);
+    setStatus("Pharmacy verification failed");
+  }
+};
+
+  // ----------------------- UI HELPERS -----------------------
+ const Timeline = () => {
+  if (!result) return null;
+
+  return (
+    <div className="card">
+
+      {/* 🔽 DROPDOWN HEADER */}
+      <div
+        onClick={() => setShowTimeline(prev => !prev)}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          cursor: "pointer",
+          alignItems: "center"
+        }}
+      >
+        <h2>Verification Timeline</h2>
+        <span>{showTimeline ? "▲" : "▼"}</span>
       </div>
-    );
-  };
 
+      {/* 🔽 ORIGINAL TIMELINE (UNCHANGED UI) */}
+      {showTimeline && (
+        <div className="timeline">
+          {stages.map((s, i) => {
+
+            // 🔥 FIX: ensure number comparison
+            const stageValue = Number(result[7]);
+
+            const active = i <= stageValue;
+
+            const failedStep =
+              i === 1 &&
+              result[5] === false &&
+              stageValue <= 1;
+
+            return (
+              <div key={i} className="step">
+                <div
+                  className={`circle ${active ? "active" : ""} ${failedStep ? "fail" : ""}`}
+                >
+                  {failedStep ? "✖" : active ? "✔" : ""}
+                </div>
+                <p>{s}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+    </div>
+  );
+};
+
+  // ----------------------- RENDER -----------------------
   return (
     <div className="container">
 
-      <h1>💊 Dashboard</h1>
+      <h1>💊 Drug Traceability And Testability System</h1>
 
       <div className="wallet">
         <p>{shortAddress(account)}</p>
         <p>{role}</p>
       </div>
 
-      <div className="kpi">
-        <div>📦 Total: {total}</div>
-        <div>✅ Passed: {passed}</div>
-        <div>❌ Failed: {failed}</div>
-      </div>
+  <div className="kpi">
 
-      <input placeholder="Search Batch..." onChange={(e)=>setSearch(e.target.value)} />
+  {/* TOTAL */}
+  <div
+    onClick={() => setKpiFilter(prev => prev === "ALL" ? null : "ALL")}
+    style={{ cursor: "pointer" }}
+  >
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <span>📦 Total: {total}</span>
+      <span>{kpiFilter === "ALL" ? "▲" : "▼"}</span>
+    </div>
+    <small>All registered batches</small>
+  </div>
+
+  {/* PASSED */}
+  <div
+    onClick={() => setKpiFilter(prev => prev === "PASSED" ? null : "PASSED")}
+    style={{ cursor: "pointer" }}
+  >
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <span>✅ Passed: {passed}</span>
+      <span>{kpiFilter === "PASSED" ? "▲" : "▼"}</span>
+    </div>
+    <small>Quality approved</small>
+  </div>
+
+  {/* FAILED */}
+  <div
+    onClick={() => setKpiFilter(prev => prev === "FAILED" ? null : "FAILED")}
+    style={{ cursor: "pointer" }}
+  >
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <span>❌ Failed: {failed}</span>
+      <span>{kpiFilter === "FAILED" ? "▲" : "▼"}</span>
+    </div>
+    <small>Rejected after testing</small>
+  </div>
+  <div
+  title="Percentage of batches that passed testing"
+  style={{ cursor: "default" }}
+>
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <span>📊 Success Rate</span>
+    <span>
+  {passed + failed > 0
+    ? Math.round((passed / (passed + failed)) * 100)
+    : 0}%
+</span>
+  </div>
+  <small>Overall system performance</small>
+</div>
+
+</div>
+
+
+{kpiFilter && (
+  <div className="card">
+    <h2>
+      {kpiFilter === "ALL" && "All Batches"}
+      {kpiFilter === "PASSED" && "Passed Batches"}
+      {kpiFilter === "FAILED" && "Failed Batches"}
+    </h2>
+
+    {globalHistory
+      .filter(h =>
+  kpiFilter === "ALL"
+    ? true
+    : kpiFilter === "PASSED"
+    ? h.type === "Test Passed"
+    : kpiFilter === "FAILED"
+    ? h.type === "Test Failed"
+    : false
+)
+      .map((h, i) => (
+        <div
+          key={i}
+          className="history-item"
+          style={{ cursor: "pointer" }}
+          onClick={() => verify(h.batchId)}
+        >
+          {h.batchId}
+          <small>{new Date(h.time).toLocaleString()}</small>
+        </div>
+      ))}
+  </div>
+)}
+<button onClick={() => setKpiFilter(null)}>Clear</button>
+
+      {/* SEARCH DROPDOWN */}
+<div className="card">
+
+  <div
+    onClick={() => setShowSearch(prev => !prev)}
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      cursor: "pointer",
+      alignItems: "center"
+    }}
+  >
+    <h3>Search Batch</h3>
+    <span>{showSearch ? "▲" : "▼"}</span>
+  </div>
+
+  {showSearch && (
+    <>
+      <input
+        placeholder="Search Batch..."
+        value={search}
+        onChange={(e)=>setSearch(e.target.value)}
+      />
 
       <div className="recent">
-        {recentBatches
-          .filter(b => b.toLowerCase().includes(search.toLowerCase()))
-          .map((b,i)=>(
-            <span key={i} onClick={()=>verify(b)}>{b}</span>
-          ))}
+        {[...recentBatches]
+  .filter(b => b.toLowerCase().includes(search.toLowerCase()))
+  .sort((a, b) => {
+    const numA = parseInt(a.replace(/\D/g, "")) || 0;
+    const numB = parseInt(b.replace(/\D/g, "")) || 0;
+    return numA - numB;
+  })
+  .map((b, i) => (
+    <span key={i} onClick={() => verify(b)}>
+      {b}
+    </span>
+  ))}
       </div>
+    </>
+  )}
+
+</div>
 
       <div className="card">
-        <input placeholder="Batch ID" onChange={(e)=>setBatchId(e.target.value)} />
-        <input placeholder="Drug Name" onChange={(e)=>setDrugName(e.target.value)} />
 
-        <select onChange={(e)=>setReceiver(e.target.value)}>
-          <option>Select Receiver</option>
-          {role==="Manufacturer" && <option value={receivers.Distributor}>Distributor</option>}
-          {role==="Distributor" && <option value={receivers.Pharmacy}>Pharmacy</option>}
+        <input
+          placeholder="Batch ID"
+          value={batchId}
+          onChange={(e)=>setBatchId(e.target.value)}
+        />
+
+        <input
+          placeholder="Drug Name"
+          value={drugName}
+          onChange={(e)=>setDrugName(e.target.value)}
+        />
+
+        {role === "Lab" && (
+          <>
+            <input placeholder="Temperature (°C)" value={temperature} onChange={(e)=>setTemperature(e.target.value)} />
+            <input placeholder="pH Level" value={ph} onChange={(e)=>setPh(e.target.value)} />
+            <input placeholder="Purity (%)" value={purity} onChange={(e)=>setPurity(e.target.value)} />
+          </>
+        )}
+
+        <select value={receiver} onChange={(e)=>setReceiver(e.target.value)}>
+          <option value="">Select Receiver</option>
+
+          {role==="Manufacturer" && (
+            <option value={receivers.Distributor}>Distributor</option>
+          )}
+
+          {role==="Distributor" && (
+            <>
+              <option value={receivers.Pharmacy_Mumbai}>Pharmacy Mumbai</option>
+              <option value={receivers.Pharmacy_Delhi}>Pharmacy Delhi</option>
+              <option value={receivers.Pharmacy_Pune}>Pharmacy Pune</option>
+            </>
+          )}
         </select>
 
         <button disabled={role!=="Manufacturer"} onClick={register}>Register</button>
-        <button disabled={role!=="Lab"} onClick={()=>test(true)}>Pass</button>
-        <button disabled={role!=="Lab"} onClick={()=>test(false)}>Fail</button>
+        <button disabled={role!=="Lab"} onClick={test}>Run Lab Test</button>
         <button disabled={(role!=="Manufacturer" && role!=="Distributor")} onClick={transfer}>Transfer</button>
-        <button onClick={() => verify(batchId)}>Verify</button>
+        <button onClick={()=>verify(batchId)}>Verify</button>
+        {role === "Pharmacy" && (
+  <button onClick={() => verifyAtPharmacy(batchId)}>
+    Final Verify
+  </button>
+)}
+
       </div>
 
       <p>{status}</p>
 
       <Timeline />
 
-      {/* ================= DETAILS ================= */}
-      {result && (
-        <div className="details-container">
+    {/* DETAILS */}
+{result && (
+  <div className="details-container">
+    <h2>Details</h2>
+    <div className="details-grid">
 
-          <h2>Details</h2>
+      <div>
+        <span>Batch ID</span>
+        <p>{result[0]}</p>
+      </div>
 
-          <div className="details-grid">
+      <div>
+        <span>Drug Name</span>
+        <p>{result[1]}</p>
+      </div>
 
-            <div><span>Batch</span><p>{result[0]}</p></div>
-            <div><span>Drug</span><p>{result[1]}</p></div>
-            <div><span>Owner</span><p>{shortAddress(result[4])}</p></div>
-            <div><span>Status</span><p>{stages[result[7]]}</p></div>
+      <div>
+        <span>Owner</span>
+        <p>{shortAddress(result[4])}</p>
+      </div>
 
-            <div>
-              <span>Test Status</span>
-              <p>
-                <span className={`badge ${result[5] ? "success" : "fail"}`}>
-                  {result[5] ? "Passed" : "Failed"}
-                </span>
-              </p>
-            </div>
+      <div>
+        <span>Stage</span>
+        <p>{stages[result[7]]}</p>
+      </div>
 
-            <div>
-              <span>Verification</span>
-              <p><span className="badge success">Approved</span></p>
-            </div>
+      <div>
+        <span>Test Status</span>
+        <p className={`badge ${result[5] ? "success" : "fail"}`}>
+          {result[5] ? "Passed" : "Failed"}
+        </p>
+      </div>
 
-            <div><span>Manufacture Date</span><p>{new Date(Number(result[2])*1000).toLocaleDateString()}</p></div>
-            <div><span>Expiry Date</span><p>{new Date(Number(result[3])*1000).toLocaleDateString()}</p></div>
+      {!result[5] && (
+  <div>
+    <span>Failure Reason</span>
+    <p>
+      {getFailureReasons().length > 0
+        ? getFailureReasons().join(", ")
+        : "Criteria not met"}
+    </p>
+  </div>
+)}
 
-            <div>
-              <span>Lab Report</span>
-              <p>
-                <a href={`https://ipfs.io/ipfs/${result[6]}`} target="_blank" rel="noreferrer">
-                  View Report
-                </a>
-              </p>
-            </div>
+      <div>
+        <span>Current Location</span>
+        <p>{getBranchName(result[4])}</p>
+      </div>
 
-          </div>
-        </div>
-      )}
+      <div>
+        <span>Manufacture Date</span>
+        <p>{new Date(Number(result[2]) * 1000).toLocaleDateString()}</p>
+      </div>
 
-      {/* ================= HISTORY ================= */}
-      {history.length > 0 && (
-        <div className="card">
-          <h2>Batch History</h2>
-          {history.map((h, i) => (
+      <div>
+        <span>Expiry Date</span>
+        <p>{new Date(Number(result[3]) * 1000).toLocaleDateString()}</p>
+      </div>
+
+      <div>
+        <span>IPFS Hash</span>
+        <p>{result[6]}</p>
+      </div>
+
+    </div>
+  </div>
+)}
+      
+{/* HISTORY (Dropdown + Sequential) */}
+{history.length > 0 && (
+  <div className="card">
+
+    {/* HEADER */}
+    <div
+      onClick={() => setShowHistory(!showHistory)}
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        cursor: "pointer",
+        userSelect: "none"
+      }}
+    >
+      <h2>Batch History</h2>
+      <span style={{ fontSize: "18px" }}>
+        {showHistory ? "▲" : "▼"}
+      </span>
+    </div>
+
+    {/* DROPDOWN */}
+    {showHistory && (
+      <div style={{ marginTop: "10px" }}>
+
+        {[...history]
+          .sort((a, b) => Number(a.timestamp) - Number(b.timestamp))
+          .map((h, i) => (
             <div key={i} className="history-item">
-              {shortAddress(h.from)} → {shortAddress(h.to)}
-              <small>{new Date(Number(h.timestamp)*1000).toLocaleString()}</small>
-            </div>
-          ))}
-        </div>
-      )}
 
-      {/* ================= ACTIVITY ================= */}
+              <strong>Step {i + 1}</strong>
+
+              <div>
+                {getBranchName(h.from)} → {getBranchName(h.to)}
+              </div>
+
+              <small>
+                {new Date(Number(h.timestamp) * 1000).toLocaleString()}
+              </small>
+
+            </div>
+          ))
+        }
+
+      </div>
+    )}
+
+  </div>
+)}
+      {/* GLOBAL LOG */}
       <div className="card">
         <h2>Activity Log</h2>
         {globalHistory.map((h, i) => (
           <div key={i} className="history-item">
-            {h.type} - {h.batchId}
+            {h.type === "Transfer"
+              ? `Transferred to ${h.branch} - ${h.batchId}`
+              : `${h.type} - ${h.batchId}`
+            }
             <small>{new Date(h.time).toLocaleString()}</small>
           </div>
         ))}

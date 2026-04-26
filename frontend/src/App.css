@@ -11,7 +11,7 @@ body {
 /* -------- CONTAINER -------- */
 .container {
   width: 95%;
-  max-width: 900px;
+  max-width: 1200px; /* 🔥 increased from 900 */
   padding: 30px 20px;
 }
 
@@ -63,14 +63,15 @@ h1 {
   transition: 0.3s;
 
   width: 100%;
-  box-sizing: border-box; /* 🔥 FIX */
+  max-width: 1100px; /* 🔥 increased */
+  box-sizing: border-box;
 }
 
 .card:hover {
   transform: translateY(-3px);
 }
 
-/* -------- INPUT FIX (MAIN ISSUE) -------- */
+/* -------- INPUT -------- */
 input, select {
   width: 100%;
   padding: 14px;
@@ -80,8 +81,7 @@ input, select {
   background: #0f1620;
   color: white;
   font-size: 14px;
-
-  box-sizing: border-box; /* 🔥 CRITICAL FIX */
+  box-sizing: border-box;
 }
 
 /* -------- SELECT ARROW FIX -------- */
@@ -90,11 +90,11 @@ select {
   -webkit-appearance: none;
   -moz-appearance: none;
 
-  padding-right: 40px; /* 🔥 SPACE FOR ARROW */
+  padding-right: 40px;
 
   background-image: url("data:image/svg+xml;utf8,<svg fill='white' height='20' viewBox='0 0 24 24' width='20' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
   background-repeat: no-repeat;
-  background-position: right 12px center; /* 🔥 SHIFT INSIDE */
+  background-position: right 12px center;
 }
 
 /* -------- BUTTON -------- */
@@ -155,12 +155,14 @@ button:disabled {
 
 /* -------- DETAILS -------- */
 .details-container {
-  margin-top: 30px;
+  max-width: 1200px;
+  margin: 30px auto;
 }
 
+/* 🔥 FIXED: ONLY ONE CLEAN GRID */
 .details-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 18px;
 }
 
@@ -222,4 +224,16 @@ button:disabled {
 .recent span:hover {
   background: #4da6a6;
   color: white;
+}
+
+.kpi small {
+  display: block;
+  font-size: 11px;
+  color: #8ea3b8;
+  margin-top: 4px;
+}
+
+.kpi div span:last-child {
+  font-size: 14px;
+  opacity: 0.8;
 }

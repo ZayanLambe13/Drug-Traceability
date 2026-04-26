@@ -50,6 +50,9 @@ contract DrugTraceability {
         uint eDate
     ) public onlyRole(Role.Manufacturer) {
 
+        // 🔥 Prevent overwrite
+        require(bytes(batches[id].batchId).length == 0, "Batch already exists");
+
         batches[id] = Batch(
             id,
             name,
@@ -69,11 +72,29 @@ contract DrugTraceability {
     ) public onlyRole(Role.Lab) {
 
         Batch storage b = batches[id];
-        require(b.stage == Stage.Manufactured, "Invalid stage");
+
+        // 🔥 Ensure batch exists
+        require(bytes(b.batchId).length != 0, "Batch not found");
+
+        // 🔥 Allow:
+        // 1. First test (Manufactured)
+        // 2. Retest ONLY if previously failed
+        require(
+            b.stage == Stage.Manufactured ||
+            (b.stage == Stage.Tested && b.testPassed == false),
+            "Invalid stage"
+        );
 
         b.testPassed = passed;
         b.ipfsHash = hash;
-        b.stage = Stage.Tested;
+
+        // 🔥 If pass → move forward
+        if (passed) {
+            b.stage = Stage.Tested;
+        } else {
+            // 🔥 Stay in Manufactured to allow retry
+            b.stage = Stage.Manufactured;
+        }
     }
 
     function transferOwnership(
@@ -83,11 +104,18 @@ contract DrugTraceability {
 
         Batch storage b = batches[id];
 
+        // 🔥 Ensure batch exists
+        require(bytes(b.batchId).length != 0, "Batch not found");
+
+        // 🔥 Only valid roles
         require(
             roles[msg.sender] == Role.Manufacturer ||
             roles[msg.sender] == Role.Distributor,
             "Not allowed"
         );
+
+        // 🔥 Must pass test before transfer
+        require(b.testPassed == true, "Test not passed");
 
         history[id].push(Transfer(msg.sender, to, block.timestamp));
 
